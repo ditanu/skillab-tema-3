@@ -1,0 +1,13 @@
+{
+  "table_name": "achizitii_directe",
+  "rules": {
+    "furnizor mare": "Un furnizor care are valoare totală a contractelor peste 500.000 RON",
+    "contract mare": "Un contract cu valoare_ron mai mare de 100.000 RON",
+    "contract mic": "Un contract cu valoare_ron sub 10.000 RON",
+    "autoritate activă": "O autoritate contractantă care are mai mult de 20 de contracte",
+    "furnizor local": "Un furnizor din aceeași localitate cu autoritatea contractantă",
+    "furnizor străin": "Un furnizor cu castigator_tara diferit de Romania",
+    "achiziție recentă": "Contract din ultima lună a perioadei (folosește data_contract)",
+    "top furnizori": "Primii furnizori ordonați descrescător după suma valorilor contractelor"
+  }
+}

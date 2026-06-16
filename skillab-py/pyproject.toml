@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "skillab"
+version = "0.1.0"
+description = "Shared Python utilities for SkillLab AI Course webapps"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+    "jinja2>=3.0.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+# LLM providers - native SDKs (no LangChain)
+anthropic = ["anthropic>=0.30.0"]
+openai = ["openai>=1.30.0"]
+google = ["google-genai[aiohttp]>=1.0.0"]
+ollama = []  # Uses httpx from core dependencies
+all-llm = [
+    "anthropic>=0.30.0",
+    "openai>=1.30.0",
+    "google-genai[aiohttp]>=1.0.0",
+]
+
+# RAG dependencies
+rag = [
+    "sentence-transformers>=2.2.0",
+]
+pgvector = [
+    "pgvector>=0.2.0",
+    "psycopg2-binary>=2.9.0",
+]
+
+# Tools with LangChain integration
+tools = ["langchain-core>=0.1.0"]
+
+# CSV/data tools
+csv = ["pandas>=2.0.0"]
+
+# Tools + CSV combined
+tools-full = [
+    "langchain-core>=0.1.0",
+    "pandas>=2.0.0",
+]
+
+# Full installation
+full = [
+    "skillab[all-llm,rag,pgvector,tools-full]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/skillab"]

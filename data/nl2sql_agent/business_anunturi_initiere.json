@@ -1,0 +1,15 @@
+{
+  "table_name": "anunturi_initiere",
+  "rules": {
+    "licitație mare": "Un anunț cu valoare_estimata peste 1.000.000 RON",
+    "licitație mică": "Un anunț cu valoare_estimata sub 100.000 RON",
+    "contract de lucrări": "Anunț cu tip_contract = 'Lucrari' (construcții, infrastructură)",
+    "contract de servicii": "Anunț cu tip_contract = 'Servicii'",
+    "contract de furnizare": "Anunț cu tip_contract = 'Furnizare' (produse, echipamente)",
+    "finanțare europeană": "Anunț cu fonduri_comunitare = 'DA'",
+    "licitație online": "Anunț cu modalitate_desfasurare = 'Online'",
+    "autoritate din București": "Anunț cu judet = 'Bucuresti' sau 'BUCURESTI'",
+    "licitație deschisă": "Procedură cu tip_procedura care conține 'Licitatie deschisa'",
+    "criteriu preț": "Anunț cu criteriu_atribuire = 'Pretul cel mai scazut'"
+  }
+}

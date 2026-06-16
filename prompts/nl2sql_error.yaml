@@ -1,0 +1,22 @@
+name: nl2sql_error
+version: "1.0.0"
+description: Corectează SQL după eroare
+
+prompt: |
+  Query-ul SQL a eșuat. Corectează-l.
+
+  TABEL: {{ table_name }}
+  ÎNTREBARE: {{ question }}
+
+  SQL EȘUAT:
+  {{ failed_sql }}
+
+  EROARE:
+  {{ error_message }}
+
+  COLOANE DISPONIBILE:
+  {% for col_name, col_info in columns.items() %}
+  - {{ col_name }}: {{ col_info.type }}
+  {% endfor %}
+
+  Returnează SQL-ul corectat:

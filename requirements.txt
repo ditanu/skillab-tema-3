@@ -1,0 +1,24 @@
+# Database
+sqlalchemy>=2.0
+psycopg2-binary
+alembic
+pgvector
+
+# Data processing
+pandas
+openpyxl
+python-docx
+
+# ML / Embeddings
+sentence-transformers
+
+# LLM (unul din acestea)
+openai
+google-genai
+google-generativeai
+
+# Utils
+python-dotenv
+tqdm
+pydantic>=2.0
+langgraph

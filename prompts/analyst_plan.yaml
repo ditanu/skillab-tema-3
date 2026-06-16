@@ -1,0 +1,47 @@
+name: analyst_plan
+version: "2.0.0"
+description: Analyst creează plan de execuție cu ID-uri pentru steps
+
+prompt: |
+  Creează un plan pentru a răspunde la întrebare.
+
+  TABELE DISPONIBILE:
+  {% for table in tables %}
+  - {{ table.name }}: {{ table.description }}
+    Coloane: {{ table.columns | join(", ") }}
+  {% endfor %}
+
+  TOOLS DISPONIBILE:
+  {{ tools_catalog }}
+
+  {% if history %}
+  CONVERSAȚIE ANTERIOARĂ:
+  {% for msg in history %}
+  {{ msg.role }}: {{ msg.content }}
+  {% endfor %}
+  {% endif %}
+
+  ÎNTREBARE: {{ question }}
+
+  INSTRUCȚIUNI:
+  1. Fiecare step are un ID unic (ex: "q1", "q2", "joined", "result")
+  2. QueryStep: query pe un tabel via NL2SQL
+  3. ToolStep: procesare date cu un tool, referențiază alte steps prin ID
+
+  Returnează JSON:
+  ```json
+  {
+    "reasoning": "explicație scurtă a strategiei",
+    "steps": [
+      {"id": "q1", "action": "query", "table": "nume_tabel", "sub_question": "întrebare specifică"},
+      {"id": "q2", "action": "query", "table": "alt_tabel", "sub_question": "altă întrebare"},
+      {"id": "joined", "action": "tool", "tool_name": "join_data", "input_steps": ["q1", "q2"], "params": {"left_key": "col1", "right_key": "col2", "how": "inner"}},
+      {"id": "result", "action": "tool", "tool_name": "filter_data", "input_steps": ["joined"], "params": {"column": "val", "operator": ">", "value": "100"}}
+    ]
+  }
+  ```
+
+  IMPORTANT:
+  - input_steps conține ID-urile steps-urilor anterioare (nu indecși numerici)
+  - Ordinea steps contează: un step poate referi doar steps definite anterior
+  - Dacă întrebarea e simplă, un singur QueryStep e suficient

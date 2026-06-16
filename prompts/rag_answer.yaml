@@ -1,0 +1,13 @@
+name: rag_answer
+version: "1.0.0"
+description: Generează răspunsul final
+
+prompt: |
+  Răspunde la întrebare folosind contextul.
+
+  ÎNTREBARE: {{ query }}
+
+  CONTEXT:
+  {{ context }}
+
+  Răspunde concis. Menționează sursa când citezi.

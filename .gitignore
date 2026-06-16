@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+
+# Large local data artifacts. Keep these locally, but do not push to GitHub.
+data/documents-sql/achizitiidirecte2018t2.xlsx
+data/rag_demo.dump

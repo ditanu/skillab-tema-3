@@ -1,0 +1,94 @@
+{
+  "table_name": "achizitii_directe",
+  "description": "Achiziții publice directe din România (Q2 2018). Contracte sub pragul de licitație, atribuite direct fără procedură competitivă.",
+  "columns": {
+    "id": {
+      "type": "INTEGER",
+      "description": "Identificator unic auto-generat pentru fiecare contract"
+    },
+    "castigator": {
+      "type": "VARCHAR(500)",
+      "description": "Numele companiei care a câștigat contractul (furnizorul)"
+    },
+    "castigator_cui": {
+      "type": "VARCHAR(50)",
+      "description": "Codul Unic de Identificare (CUI) al furnizorului. Poate conține prefix 'RO' pentru persoane juridice"
+    },
+    "castigator_tara": {
+      "type": "VARCHAR(100)",
+      "description": "Țara furnizorului (ex: Romania, Bulgaria, Germania)"
+    },
+    "castigator_localitate": {
+      "type": "VARCHAR(200)",
+      "description": "Orașul sau localitatea furnizorului (ex: București, Cluj-Napoca)"
+    },
+    "castigator_adresa": {
+      "type": "TEXT",
+      "description": "Adresa completă a furnizorului (stradă, număr, sector/județ)"
+    },
+    "tip_procedura": {
+      "type": "VARCHAR(100)",
+      "description": "Tipul procedurii de achiziție. Pentru acest tabel: 'Cumparare directa'"
+    },
+    "autoritate_contractanta": {
+      "type": "VARCHAR(500)",
+      "description": "Instituția publică care a făcut achiziția (primării, ministere, spitale, școli, etc.)"
+    },
+    "autoritate_contractanta_cui": {
+      "type": "VARCHAR(50)",
+      "description": "CUI-ul autorității contractante (instituției publice)"
+    },
+    "numar_anunt": {
+      "type": "VARCHAR(50)",
+      "description": "Numărul unic al anunțului de achiziție în sistemul SEAP (ex: DA20000005)"
+    },
+    "data_anunt": {
+      "type": "TIMESTAMP",
+      "description": "Data și ora publicării anunțului de achiziție"
+    },
+    "descriere": {
+      "type": "TEXT",
+      "description": "Descrierea detaliată a produselor/serviciilor achiziționate"
+    },
+    "tip_incheiere_contract": {
+      "type": "VARCHAR(100)",
+      "description": "Modalitatea de încheiere a contractului (Cumparare directa, Oferta)"
+    },
+    "numar_contract": {
+      "type": "VARCHAR(100)",
+      "description": "Numărul contractului încheiat între autoritate și furnizor"
+    },
+    "data_contract": {
+      "type": "TIMESTAMP",
+      "description": "Data semnării contractului"
+    },
+    "titlu_contract": {
+      "type": "TEXT",
+      "description": "Titlul scurt al contractului (ce s-a achiziționat)"
+    },
+    "valoare": {
+      "type": "DECIMAL(18,2)",
+      "description": "Valoarea contractului în moneda originală (vezi coloana 'moneda')"
+    },
+    "moneda": {
+      "type": "VARCHAR(10)",
+      "description": "Moneda valorii originale (RON, EUR, USD)"
+    },
+    "valoare_ron": {
+      "type": "DECIMAL(18,2)",
+      "description": "Valoarea contractului convertită în RON (lei românești)"
+    },
+    "valoare_eur": {
+      "type": "DECIMAL(18,2)",
+      "description": "Valoarea contractului convertită în EUR (euro)"
+    },
+    "cpv_code_id": {
+      "type": "INTEGER",
+      "description": "ID intern pentru codul CPV"
+    },
+    "cpv_code": {
+      "type": "VARCHAR(50)",
+      "description": "Codul CPV (Common Procurement Vocabulary) - clasificare europeană pentru tipul de produs/serviciu (ex: 45000000-7 pentru construcții)"
+    }
+  }
+}

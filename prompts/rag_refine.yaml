@@ -1,0 +1,30 @@
+name: rag_refine
+version: "1.0.0"
+description: RAG rafinează query-ul bazat pe feedback
+
+prompt: |
+  Ajustează query-ul de căutare.
+
+  QUERY ORIGINAL: {{ original_query }}
+  QUERY CURENT: {{ current_query }}
+
+  CE AM GĂSIT:
+  {{ found_summary }}
+
+  SCORURI: max={{ max_score }}, avg={{ avg_score }}
+  THRESHOLD CURENT: {{ current_threshold }}
+
+  FEEDBACK:
+  - Poate răspunde: {{ can_answer }}
+  - Ce lipsește: {{ missing_info }}
+  - Sugestie: {{ suggestion }}
+
+  Răspunde în JSON:
+  ```json
+  {"query": "noul query reformulat", "threshold": 0.3}
+  ```
+
+  Reguli pentru threshold:
+  - Dacă scorurile sunt prea mici și nu găsim nimic util, scade threshold (0.2-0.3)
+  - Dacă primim prea multe rezultate irelevante, crește threshold (0.5-0.7)
+  - Dacă scorurile sunt OK, pune null pentru a păstra threshold-ul curent

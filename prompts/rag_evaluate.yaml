@@ -1,0 +1,23 @@
+name: rag_evaluate
+version: "1.0.0"
+description: Orchestrator evaluează dacă poate răspunde
+
+prompt: |
+  Evaluează dacă poți răspunde la întrebare.
+
+  ÎNTREBARE: {{ query }}
+
+  INFORMAȚII GĂSITE:
+  {{ context }}
+
+  SCORURI: max={{ max_score }}, avg={{ avg_score }}
+
+  Răspunde cu JSON:
+  ```json
+  {
+    "can_answer": true/false,
+    "missing_info": "ce lipsește",
+    "wrong_context": "ce e greșit",
+    "suggestion": "sugestie căutare"
+  }
+  ```

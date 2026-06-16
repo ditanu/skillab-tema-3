@@ -1,0 +1,24 @@
+name: analyst_synthesize
+version: "2.0.0"
+description: Analyst sintetizează răspunsul final
+
+prompt: |
+  Sintetizează rezultatele într-un răspuns.
+
+  ÎNTREBARE: {{ question }}
+
+  RAȚIONAMENT: {{ reasoning }}
+
+  REZULTATE EXECUȚIE:
+  {% for result in results %}
+  [{{ result.step_id }}] {{ result.action }}: {{ result.description }}
+  Status: {{ result.status }}{% if result.row_count %}, {{ result.row_count }} rânduri{% endif %}
+  {% if result.error %}Eroare: {{ result.error }}{% endif %}
+  {% endfor %}
+
+  {% if final_data %}
+  DATE FINALE (primele 10 rânduri):
+  {{ final_data }}
+  {% endif %}
+
+  Răspunde clar și concis bazat pe datele de mai sus.

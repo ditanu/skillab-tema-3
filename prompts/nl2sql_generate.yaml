@@ -1,0 +1,23 @@
+name: nl2sql_generate
+version: "1.0.0"
+description: Generează SQL din întrebare
+
+prompt: |
+  Generează un query SQL pentru întrebarea de mai jos.
+
+  TABEL: {{ table_name }}
+  DESCRIERE: {{ table_description }}
+
+  COLOANE:
+  {% for col_name, col_info in columns.items() %}
+  - {{ col_name }}: {{ col_info.type }} - {{ col_info.description }}
+  {% endfor %}
+
+  REGULI BUSINESS:
+  {% for rule_name, rule_desc in business_rules.items() %}
+  - {{ rule_name }}: {{ rule_desc }}
+  {% endfor %}
+
+  ÎNTREBARE: {{ question }}
+
+  Returnează DOAR query-ul SQL (SELECT):

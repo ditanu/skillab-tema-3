@@ -1,0 +1,78 @@
+{
+  "table_name": "anunturi_initiere",
+  "description": "Anunțuri de inițiere a procedurilor de achiziție publică din România (Q2 2018). Licitații și proceduri competitive pentru contracte peste pragul de achiziție directă.",
+  "columns": {
+    "id": {
+      "type": "INTEGER",
+      "description": "Identificator unic auto-generat pentru fiecare anunț"
+    },
+    "tip_anunt": {
+      "type": "VARCHAR(200)",
+      "description": "Tipul anunțului de licitație (ex: 'Anunt de participare simplificat', 'Anunt de participare', 'Invitatie de participare')"
+    },
+    "numar_anunt_invitatie": {
+      "type": "VARCHAR(50)",
+      "description": "Numărul unic al anunțului în sistemul SEAP (ex: SCN1000001)"
+    },
+    "data_publicare": {
+      "type": "TIMESTAMP",
+      "description": "Data și ora publicării anunțului de licitație"
+    },
+    "denumire_ac": {
+      "type": "VARCHAR(500)",
+      "description": "Denumirea autorității contractante - instituția publică care organizează licitația"
+    },
+    "cui": {
+      "type": "VARCHAR(50)",
+      "description": "Codul Unic de Identificare (CUI) al autorității contractante"
+    },
+    "judet": {
+      "type": "VARCHAR(100)",
+      "description": "Județul în care se află autoritatea contractantă (ex: București, Cluj, Timiș)"
+    },
+    "tip_contract": {
+      "type": "VARCHAR(100)",
+      "description": "Categoria contractului: 'Lucrari' (construcții), 'Servicii', sau 'Furnizare' (produse)"
+    },
+    "utilitati": {
+      "type": "VARCHAR(10)",
+      "description": "Dacă achiziția este pentru sectorul utilităților publice (DA/NU)"
+    },
+    "tip_procedura": {
+      "type": "VARCHAR(200)",
+      "description": "Tipul procedurii de achiziție (ex: 'Procedura simplificata', 'Licitatie deschisa', 'Negociere fara publicare')"
+    },
+    "criteriu_atribuire": {
+      "type": "VARCHAR(200)",
+      "description": "Criteriul de selectare a câștigătorului: 'Pretul cel mai scazut' sau 'Cel mai bun raport calitate-pret'"
+    },
+    "valoare_estimata": {
+      "type": "DECIMAL(18,2)",
+      "description": "Valoarea estimată a contractului (bugetul alocat de autoritate)"
+    },
+    "moneda": {
+      "type": "VARCHAR(10)",
+      "description": "Moneda valorii estimate (RON, EUR)"
+    },
+    "modalitate_desfasurare": {
+      "type": "VARCHAR(100)",
+      "description": "Modalitatea de desfășurare a licitației: 'Online' (SEAP) sau 'Offline'"
+    },
+    "trimis_ojeu": {
+      "type": "VARCHAR(10)",
+      "description": "Dacă anunțul a fost trimis la Jurnalul Oficial al UE - obligatoriu pentru contracte mari (DA/NU)"
+    },
+    "fonduri_comunitare": {
+      "type": "VARCHAR(10)",
+      "description": "Dacă achiziția este finanțată din fonduri europene (DA/NU)"
+    },
+    "main_cpv_code": {
+      "type": "VARCHAR(50)",
+      "description": "Codul CPV principal - clasificare europeană pentru obiectul contractului (ex: 45212100-7)"
+    },
+    "main_cpv_name": {
+      "type": "TEXT",
+      "description": "Denumirea completă a codului CPV (ex: 'Lucrari de constructii de complexe pentru petrecerea timpului liber')"
+    }
+  }
+}

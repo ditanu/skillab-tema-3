@@ -1,0 +1,24 @@
+{
+  "description": "Relații și echivalențe între tabele pentru join-uri",
+  "column_mappings": [
+    {
+      "description": "Codul CPV (clasificare produse/servicii)",
+      "achizitii_directe": "cpv_code",
+      "anunturi_initiere": "main_cpv_code"
+    },
+    {
+      "description": "CUI autoritate contractantă",
+      "achizitii_directe": "autoritate_contractanta_cui",
+      "anunturi_initiere": "cui"
+    },
+    {
+      "description": "Numele autorității contractante",
+      "achizitii_directe": "autoritate_contractanta",
+      "anunturi_initiere": "denumire_ac"
+    }
+  ],
+  "join_hints": {
+    "cpv": "Pentru a compara pe cod CPV: achizitii_directe.cpv_code = anunturi_initiere.main_cpv_code",
+    "autoritate": "Pentru a compara pe autoritate: achizitii_directe.autoritate_contractanta_cui = anunturi_initiere.cui"
+  }
+}

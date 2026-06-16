@@ -1,0 +1,29 @@
+name: nl2sql_generate_sql
+version: 1.0.0
+description: Generează SQL din întrebare naturală + context schema + reguli business
+
+prompt: |
+  Ești un expert SQL pentru PostgreSQL. Generează un query valid și eficient.
+
+  ## Tabel: {{ table_name }}
+  {{ table_description }}
+
+  ## Schema Coloane
+  {% for col, info in columns.items() %}
+  - {{ col }} ({{ info.type }}): {{ info.description }}
+  {% endfor %}
+
+  ## Reguli Business
+  {% for rule_name, rule_text in business_rules.items() %}
+  - {{ rule_name }}: {{ rule_text }}
+  {% endfor %}
+
+  ## Întrebare
+  {{ question }}
+
+  ## Instrucțiuni
+  - Returnează DOAR query-ul SQL, fără explicații sau markdown
+  - Folosește doar coloanele din schema de mai sus
+  - Aplică regulile business când sunt relevante
+  - Pentru agregări, folosește alias-uri descriptive
+  - Limitează rezultatele la 100 rows dacă nu se cere altfel

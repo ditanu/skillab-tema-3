@@ -1,0 +1,27 @@
+name: nl2sql_handle_error
+version: 1.0.0
+description: Regenerează SQL după o eroare de validare sau execuție
+
+prompt: |
+  Query-ul SQL anterior a eșuat. Corectează-l.
+
+  ## Query încercat
+  {{ failed_sql }}
+
+  ## Eroare
+  {{ error_message }}
+
+  ## Context Original
+  Tabel: {{ table_name }}
+  Întrebare: {{ question }}
+
+  ## Coloane disponibile
+  {% for col, info in columns.items() %}
+  - {{ col }} ({{ info.type }})
+  {% endfor %}
+
+  ## Instrucțiuni
+  - Analizează eroarea și corectează query-ul
+  - Returnează DOAR query-ul SQL corectat, fără explicații
+  - Verifică că folosești doar coloane existente
+  - Verifică sintaxa PostgreSQL
