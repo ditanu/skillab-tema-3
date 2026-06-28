@@ -258,3 +258,51 @@ tools_catalog = ToolWrapper.to_prompt_string()
 ```bash
 cd src && python main.py
 ```
+
+## MCP: Data Analyst Agent ca tool
+
+Serverul MCP este in `src/analyst_mcp_server.py` si expune tool-ul `data_analyst`.
+
+Input schema:
+```json
+{
+  "question": "string, required",
+  "include_plan": "boolean, default true",
+  "include_preview": "boolean, default true",
+  "max_preview_rows": "integer, default 10, min 1, max 50"
+}
+```
+
+Output-ul este returnat ca `TextContent` JSON:
+```json
+{
+  "status": "success | failed | no_plan",
+  "answer": "raspunsul sintetizat",
+  "reasoning": "rationamentul planificarii",
+  "plan": [],
+  "step_results": [],
+  "final_preview": {
+    "step_id": "id-ul ultimului pas",
+    "row_count": 0,
+    "columns": [],
+    "rows": []
+  }
+}
+```
+
+Rulare prin stdio:
+```bash
+python src/analyst_mcp_server.py
+```
+
+Exemplu config MCP local:
+```json
+{
+  "mcpServers": {
+    "data-analyst-agent": {
+      "command": "python",
+      "args": ["/path/to/project/src/analyst_mcp_server.py"]
+    }
+  }
+}
+```
