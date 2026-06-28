@@ -16,13 +16,14 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import mcp.types as types
 from dotenv import load_dotenv
 from mcp.server.lowlevel import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
+from pydantic import BaseModel, Field
 
 ROOT_DIR = Path(__file__).parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -61,74 +62,54 @@ TABLES_CONFIG = {
     },
 }
 
-DATA_ANALYST_INPUT_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "question": {
-            "type": "string",
-            "description": "Intrebarea de analiza in limbaj natural.",
-            "minLength": 1,
-        },
-        "include_plan": {
-            "type": "boolean",
-            "description": "Include planul si rezultatele pasilor executati.",
-            "default": True,
-        },
-        "include_preview": {
-            "type": "boolean",
-            "description": "Include un preview tabelar pentru slice-ul final.",
-            "default": True,
-        },
-        "max_preview_rows": {
-            "type": "integer",
-            "description": "Numarul maxim de randuri returnate in preview.",
-            "default": 10,
-            "minimum": 1,
-            "maximum": 50,
-        },
-    },
-    "required": ["question"],
-}
 
-DATA_ANALYST_OUTPUT_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "status": {
-            "type": "string",
-            "enum": ["success", "failed", "no_plan"],
-            "description": "Statusul final al agentului.",
-        },
-        "answer": {
-            "type": "string",
-            "description": "Raspunsul sintetizat de Data Analyst Agent.",
-        },
-        "reasoning": {
-            "type": "string",
-            "description": "Rationamentul folosit la planificare.",
-        },
-        "plan": {
-            "type": "array",
-            "description": "Pasii planului executat de agent.",
-            "items": {"type": "object"},
-        },
-        "step_results": {
-            "type": "array",
-            "description": "Rezultatul fiecarui pas: status, descriere, row_count, erori.",
-            "items": {"type": "object"},
-        },
-        "final_preview": {
-            "type": "object",
-            "description": "Preview pentru ultimul DataFrame produs.",
-            "properties": {
-                "step_id": {"type": "string"},
-                "row_count": {"type": "integer"},
-                "columns": {"type": "array", "items": {"type": "string"}},
-                "rows": {"type": "array", "items": {"type": "object"}},
-            },
-        },
-    },
-    "required": ["status", "answer"],
-}
+class DataAnalystInput(BaseModel):
+    """Schema input pentru tool-ul MCP."""
+
+    question: str = Field(
+        min_length=1,
+        description="Intrebarea de analiza in limbaj natural.",
+    )
+    include_plan: bool = Field(
+        default=True,
+        description="Include planul si rezultatele pasilor executati.",
+    )
+    include_preview: bool = Field(
+        default=True,
+        description="Include un preview tabelar pentru slice-ul final.",
+    )
+    max_preview_rows: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Numarul maxim de randuri returnate in preview.",
+    )
+
+
+class FinalPreview(BaseModel):
+    """Preview pentru ultimul DataFrame produs de agent."""
+
+    step_id: str
+    row_count: int
+    columns: list[str]
+    rows: list[dict[str, Any]]
+
+
+class DataAnalystOutput(BaseModel):
+    """Schema output pentru rezultatul serializat in TextContent."""
+
+    status: Literal["success", "failed", "no_plan"] = Field(
+        description="Statusul final al agentului."
+    )
+    answer: str = Field(description="Raspunsul sintetizat de Data Analyst Agent.")
+    reasoning: str = Field(default="", description="Rationamentul folosit la planificare.")
+    plan: list[dict[str, Any]] = Field(default_factory=list)
+    step_results: list[dict[str, Any]] = Field(default_factory=list)
+    final_preview: FinalPreview | None = None
+
+
+DATA_ANALYST_INPUT_SCHEMA = DataAnalystInput.model_json_schema()
+DATA_ANALYST_OUTPUT_SCHEMA = DataAnalystOutput.model_json_schema()
 
 server = Server(SERVER_NAME)
 _analyst: AnalystAgent | None = None
@@ -201,27 +182,40 @@ def _final_preview(state: dict[str, Any], max_rows: int) -> dict[str, Any] | Non
 
 def _serialize_result(
     state: dict[str, Any],
-    include_plan: bool,
-    include_preview: bool,
-    max_preview_rows: int,
-) -> dict[str, Any]:
+    request: DataAnalystInput,
+) -> DataAnalystOutput:
     result: dict[str, Any] = {
         "status": state.get("status", "failed"),
         "answer": state.get("answer", ""),
         "reasoning": state.get("reasoning", ""),
     }
 
-    if include_plan:
+    if request.include_plan:
         result["plan"] = [_model_to_dict(step) for step in state.get("plan", [])]
         result["step_results"] = [
             _model_to_dict(step_result)
             for step_result in state.get("step_results", [])
         ]
 
-    if include_preview:
-        result["final_preview"] = _final_preview(state, max_preview_rows)
+    if request.include_preview:
+        result["final_preview"] = _final_preview(state, request.max_preview_rows)
 
-    return result
+    return DataAnalystOutput.model_validate(result)
+
+
+def run_data_analyst_tool(arguments: dict[str, Any]) -> DataAnalystOutput:
+    """Handlerul tool-ului MCP: valideaza inputul si apeleaza agentul."""
+    request = DataAnalystInput.model_validate(arguments)
+    question = request.question.strip()
+    if not question:
+        raise ValueError("Parametrul 'question' este obligatoriu si nu poate fi gol.")
+    request.question = question
+
+    logger.info("Running %s for question=%r", TOOL_NAME, question)
+    analyst = get_analyst()
+    state = analyst.chat(question)
+
+    return _serialize_result(state=state, request=request)
 
 
 @server.list_tools()
@@ -247,30 +241,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
     if name != TOOL_NAME:
         raise ValueError(f"Tool necunoscut: {name}. Tool disponibil: {TOOL_NAME}")
 
-    question = (arguments.get("question") or "").strip()
-    if not question:
-        raise ValueError("Parametrul 'question' este obligatoriu si nu poate fi gol.")
-
-    include_plan = bool(arguments.get("include_plan", True))
-    include_preview = bool(arguments.get("include_preview", True))
-    max_preview_rows = int(arguments.get("max_preview_rows", 10))
-    max_preview_rows = max(1, min(max_preview_rows, 50))
-
-    logger.info("Running %s for question=%r", TOOL_NAME, question)
-    analyst = get_analyst()
-    state = analyst.chat(question)
-
-    payload = _serialize_result(
-        state=state,
-        include_plan=include_plan,
-        include_preview=include_preview,
-        max_preview_rows=max_preview_rows,
-    )
+    payload = run_data_analyst_tool(arguments)
 
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(payload, ensure_ascii=False, indent=2, default=str),
+            text=json.dumps(payload.model_dump(), ensure_ascii=False, indent=2, default=str),
         )
     ]
 
