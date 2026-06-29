@@ -266,10 +266,18 @@ Serverul MCP este in `src/analyst_mcp_server.py` si expune doua tool-uri:
 - `data_analyst` - Analyst + NL2SQL pentru tabelele `achizitii_directe` si `anunturi_initiere`
 - `orchestrator_rag` - Orchestrator Supervisor + RAG pentru intrebari peste documente
 
+Guardrails pe input:
+
+- payload-ul trebuie sa fie obiect JSON serializabil, maxim 16 KB
+- campurile extra sunt respinse (`additionalProperties: false`)
+- `question` si `query` sunt string-uri obligatorii, 1-2000 caractere
+- textul este normalizat Unicode si sunt eliminate zero-width chars
+- prompt injection cunoscut este blocat prin regex fail-fast inainte de LLM/DB
+
 Input `data_analyst`:
 ```json
 {
-  "question": "string, required",
+  "question": "string, required, max 2000 chars",
   "include_plan": "boolean, default true",
   "include_preview": "boolean, default true",
   "max_preview_rows": "integer, default 10, min 1, max 50"
@@ -279,7 +287,7 @@ Input `data_analyst`:
 Input `orchestrator_rag`:
 ```json
 {
-  "query": "string, required",
+  "query": "string, required, max 2000 chars",
   "include_rag_context": "boolean, default true"
 }
 ```
@@ -327,6 +335,9 @@ Test client MCP:
 ```bash
 # handshake + tools/list, fara LLM/DB
 python3.11 src/test_mcp_client.py
+
+# validare input + prompt injection guardrails, fara LLM/DB
+python3.11 src/test_mcp_client.py --guardrails
 
 # tools/list + tools/call pentru ambele tool-uri; necesita .env, DB si date
 python3.11 src/test_mcp_client.py --call

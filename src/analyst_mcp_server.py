@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 from mcp.server.lowlevel import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 ROOT_DIR = Path(__file__).parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -37,6 +37,7 @@ sys.path.insert(0, str(SKILLAB_SRC))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from analyst_agent import AnalystAgent  # noqa: E402
+from mcp_guardrails import validate_arguments_shape, validate_safe_text  # noqa: E402
 from orchestrator import Orchestrator  # noqa: E402
 from skillab import get_llm  # noqa: E402
 from state import OrchestratorState  # noqa: E402
@@ -57,6 +58,9 @@ SERVER_VERSION = "1.0.0"
 DATA_ANALYST_TOOL_NAME = "data_analyst"
 ORCHESTRATOR_TOOL_NAME = "orchestrator_rag"
 DEFAULT_DB_URL = "postgresql://demo:demo123@localhost:5433/rag_demo"
+DATA_ANALYST_ALLOWED_FIELDS = {"question", "include_plan", "include_preview", "max_preview_rows"}
+ORCHESTRATOR_ALLOWED_FIELDS = {"query", "include_rag_context"}
+MAX_USER_TEXT_CHARS = 2_000
 
 TABLES_CONFIG = {
     "achizitii_directe": {
@@ -73,8 +77,11 @@ TABLES_CONFIG = {
 class DataAnalystInput(BaseModel):
     """Schema input pentru tool-ul MCP."""
 
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(
         min_length=1,
+        max_length=MAX_USER_TEXT_CHARS,
         description="Intrebarea de analiza in limbaj natural.",
     )
     include_plan: bool = Field(
@@ -96,6 +103,8 @@ class DataAnalystInput(BaseModel):
 class FinalPreview(BaseModel):
     """Preview pentru ultimul DataFrame produs de agent."""
 
+    model_config = ConfigDict(extra="forbid")
+
     step_id: str
     row_count: int
     columns: list[str]
@@ -104,6 +113,8 @@ class FinalPreview(BaseModel):
 
 class DataAnalystOutput(BaseModel):
     """Schema output pentru rezultatul serializat in TextContent."""
+
+    model_config = ConfigDict(extra="forbid")
 
     status: Literal["success", "failed", "no_plan"] = Field(
         description="Statusul final al agentului."
@@ -122,8 +133,11 @@ DATA_ANALYST_OUTPUT_SCHEMA = DataAnalystOutput.model_json_schema()
 class OrchestratorInput(BaseModel):
     """Schema input pentru tool-ul MCP Orchestrator."""
 
+    model_config = ConfigDict(extra="forbid")
+
     query: str = Field(
         min_length=1,
+        max_length=MAX_USER_TEXT_CHARS,
         description="Intrebarea pentru Orchestrator Supervisor + RAG.",
     )
     include_rag_context: bool = Field(
@@ -135,6 +149,8 @@ class OrchestratorInput(BaseModel):
 class RAGContextSummary(BaseModel):
     """Rezumat serializabil pentru rezultatul RAG final."""
 
+    model_config = ConfigDict(extra="forbid")
+
     query_used: str = ""
     result_count: int = 0
     max_score: float = 0.0
@@ -144,6 +160,8 @@ class RAGContextSummary(BaseModel):
 
 class OrchestratorOutput(BaseModel):
     """Schema output pentru rezultatul Orchestrator serializat in TextContent."""
+
+    model_config = ConfigDict(extra="forbid")
 
     status: Literal["pending", "success", "partial", "failed"] = Field(
         description="Statusul final al Orchestrator Agent."
@@ -268,15 +286,22 @@ def _serialize_result(
 
 def run_data_analyst_tool(arguments: dict[str, Any]) -> DataAnalystOutput:
     """Handlerul tool-ului MCP: valideaza inputul si apeleaza agentul."""
-    request = DataAnalystInput.model_validate(arguments)
-    question = request.question.strip()
-    if not question:
-        raise ValueError("Parametrul 'question' este obligatoriu si nu poate fi gol.")
-    request.question = question
+    validate_arguments_shape(arguments, allowed_fields=DATA_ANALYST_ALLOWED_FIELDS)
+    if "question" in arguments:
+        arguments = {
+            **arguments,
+            "question": validate_safe_text(
+                arguments["question"],
+                field_name="question",
+                max_chars=MAX_USER_TEXT_CHARS,
+            ),
+        }
 
-    logger.info("Running %s for question=%r", DATA_ANALYST_TOOL_NAME, question)
+    request = DataAnalystInput.model_validate(arguments)
+
+    logger.info("Running %s for question=%r", DATA_ANALYST_TOOL_NAME, request.question)
     analyst = get_analyst()
-    state = analyst.chat(question)
+    state = analyst.chat(request.question)
 
     return _serialize_result(state=state, request=request)
 
@@ -320,15 +345,22 @@ def _serialize_orchestrator_result(
 
 def run_orchestrator_tool(arguments: dict[str, Any]) -> OrchestratorOutput:
     """Handlerul tool-ului MCP: valideaza inputul si apeleaza Orchestrator."""
-    request = OrchestratorInput.model_validate(arguments)
-    query = request.query.strip()
-    if not query:
-        raise ValueError("Parametrul 'query' este obligatoriu si nu poate fi gol.")
-    request.query = query
+    validate_arguments_shape(arguments, allowed_fields=ORCHESTRATOR_ALLOWED_FIELDS)
+    if "query" in arguments:
+        arguments = {
+            **arguments,
+            "query": validate_safe_text(
+                arguments["query"],
+                field_name="query",
+                max_chars=MAX_USER_TEXT_CHARS,
+            ),
+        }
 
-    logger.info("Running %s for query=%r", ORCHESTRATOR_TOOL_NAME, query)
+    request = OrchestratorInput.model_validate(arguments)
+
+    logger.info("Running %s for query=%r", ORCHESTRATOR_TOOL_NAME, request.query)
     app = get_orchestrator_app()
-    state = app.invoke(OrchestratorState(query=query))
+    state = app.invoke(OrchestratorState(query=request.query))
 
     return _serialize_orchestrator_result(state=state, request=request)
 
