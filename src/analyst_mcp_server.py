@@ -1,9 +1,13 @@
 """
-MCP server pentru Data Analyst Agent.
+MCP server pentru agentii L6.
 
-Expune agentul Analyst + NL2SQL ca un tool MCP:
+Expune doua tool-uri MCP:
+  - data_analyst: Analyst + NL2SQL pentru intrebari analitice peste tabele
+  - orchestrator_rag: Orchestrator Supervisor + RAG pentru intrebari peste documente
+
+Pentru fiecare tool:
   - tools/list: publica schema de input si contractul de output
-  - tools/call: apeleaza AnalystAgent.chat(question) si returneaza JSON text
+  - tools/call: valideaza argumentele, apeleaza agentul si returneaza JSON text
 
 Rulare locala (stdio, recomandat pentru clienti MCP):
     python src/analyst_mcp_server.py
@@ -33,7 +37,9 @@ sys.path.insert(0, str(SKILLAB_SRC))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from analyst_agent import AnalystAgent  # noqa: E402
+from orchestrator import Orchestrator  # noqa: E402
 from skillab import get_llm  # noqa: E402
+from state import OrchestratorState  # noqa: E402
 
 load_dotenv(ROOT_DIR / ".env")
 
@@ -46,9 +52,10 @@ logging.basicConfig(
 )
 
 
-SERVER_NAME = "data-analyst-agent"
+SERVER_NAME = "l6-agents"
 SERVER_VERSION = "1.0.0"
-TOOL_NAME = "data_analyst"
+DATA_ANALYST_TOOL_NAME = "data_analyst"
+ORCHESTRATOR_TOOL_NAME = "orchestrator_rag"
 DEFAULT_DB_URL = "postgresql://demo:demo123@localhost:5433/rag_demo"
 
 TABLES_CONFIG = {
@@ -111,8 +118,48 @@ class DataAnalystOutput(BaseModel):
 DATA_ANALYST_INPUT_SCHEMA = DataAnalystInput.model_json_schema()
 DATA_ANALYST_OUTPUT_SCHEMA = DataAnalystOutput.model_json_schema()
 
+
+class OrchestratorInput(BaseModel):
+    """Schema input pentru tool-ul MCP Orchestrator."""
+
+    query: str = Field(
+        min_length=1,
+        description="Intrebarea pentru Orchestrator Supervisor + RAG.",
+    )
+    include_rag_context: bool = Field(
+        default=True,
+        description="Include metadate despre rezultatul RAG folosit de Orchestrator.",
+    )
+
+
+class RAGContextSummary(BaseModel):
+    """Rezumat serializabil pentru rezultatul RAG final."""
+
+    query_used: str = ""
+    result_count: int = 0
+    max_score: float = 0.0
+    avg_score: float = 0.0
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OrchestratorOutput(BaseModel):
+    """Schema output pentru rezultatul Orchestrator serializat in TextContent."""
+
+    status: Literal["pending", "success", "partial", "failed"] = Field(
+        description="Statusul final al Orchestrator Agent."
+    )
+    answer: str = Field(description="Raspunsul final sintetizat de Orchestrator.")
+    iteration: int = Field(default=0, description="Numarul de iteratii RAG executate.")
+    feedback: dict[str, Any] | None = None
+    rag_context: RAGContextSummary | None = None
+
+
+ORCHESTRATOR_INPUT_SCHEMA = OrchestratorInput.model_json_schema()
+ORCHESTRATOR_OUTPUT_SCHEMA = OrchestratorOutput.model_json_schema()
+
 server = Server(SERVER_NAME)
 _analyst: AnalystAgent | None = None
+_orchestrator_app: Any | None = None
 
 
 def _resolve_provider(provider: str | None) -> str | None:
@@ -152,6 +199,22 @@ def get_analyst() -> AnalystAgent:
         )
 
     return _analyst
+
+
+def get_orchestrator_app() -> Any:
+    """Initializeaza graful Orchestrator o singura data, la primul tool call."""
+    global _orchestrator_app
+
+    if _orchestrator_app is None:
+        provider = _resolve_provider(os.getenv("LLM_PROVIDER"))
+        model = _get_model_from_env(os.getenv("LLM_PROVIDER"))
+
+        logger.info("Initializing Orchestrator Agent with provider=%s model=%s", provider, model)
+        llm = get_llm(provider=provider, model=model)
+        orchestrator = Orchestrator(llm=llm)
+        _orchestrator_app = orchestrator.build_graph()
+
+    return _orchestrator_app
 
 
 def _model_to_dict(value: Any) -> Any:
@@ -211,37 +274,103 @@ def run_data_analyst_tool(arguments: dict[str, Any]) -> DataAnalystOutput:
         raise ValueError("Parametrul 'question' este obligatoriu si nu poate fi gol.")
     request.question = question
 
-    logger.info("Running %s for question=%r", TOOL_NAME, question)
+    logger.info("Running %s for question=%r", DATA_ANALYST_TOOL_NAME, question)
     analyst = get_analyst()
     state = analyst.chat(question)
 
     return _serialize_result(state=state, request=request)
 
 
+def _rag_context_summary(state: dict[str, Any]) -> RAGContextSummary | None:
+    rag_result = state.get("rag_result")
+    if not rag_result:
+        return None
+
+    results = rag_result.results or []
+    sources = [
+        {
+            "file_name": result.file_name,
+            "summary": result.summary,
+            "score": result.score,
+        }
+        for result in results
+    ]
+
+    return RAGContextSummary(
+        query_used=rag_result.query_used,
+        result_count=len(results),
+        max_score=rag_result.max_score,
+        avg_score=rag_result.avg_score,
+        sources=sources,
+    )
+
+
+def _serialize_orchestrator_result(
+    state: dict[str, Any],
+    request: OrchestratorInput,
+) -> OrchestratorOutput:
+    return OrchestratorOutput(
+        status=state.get("status", "failed"),
+        answer=state.get("answer", ""),
+        iteration=state.get("iteration", 0),
+        feedback=_model_to_dict(state.get("feedback")) if state.get("feedback") else None,
+        rag_context=_rag_context_summary(state) if request.include_rag_context else None,
+    )
+
+
+def run_orchestrator_tool(arguments: dict[str, Any]) -> OrchestratorOutput:
+    """Handlerul tool-ului MCP: valideaza inputul si apeleaza Orchestrator."""
+    request = OrchestratorInput.model_validate(arguments)
+    query = request.query.strip()
+    if not query:
+        raise ValueError("Parametrul 'query' este obligatoriu si nu poate fi gol.")
+    request.query = query
+
+    logger.info("Running %s for query=%r", ORCHESTRATOR_TOOL_NAME, query)
+    app = get_orchestrator_app()
+    state = app.invoke(OrchestratorState(query=query))
+
+    return _serialize_orchestrator_result(state=state, request=request)
+
+
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
-    description = (
+    data_analyst_description = (
         "Ruleaza Data Analyst Agent pentru intrebari analitice peste tabelele "
         "achizitii_directe si anunturi_initiere. Agentul creeaza un plan, "
         "apeleaza NL2SQL pentru query-uri si foloseste tool-uri locale pentru "
         "join/filter. Output-ul este JSON text conform DATA_ANALYST_OUTPUT_SCHEMA."
     )
+    orchestrator_description = (
+        "Ruleaza Orchestrator Agent, supervisor peste RAG Agent. Foloseste cautare "
+        "RAG in documente, evalueaza daca informatia gasita este suficienta si "
+        "genereaza raspunsul final. Output-ul este JSON text conform "
+        "ORCHESTRATOR_OUTPUT_SCHEMA."
+    )
 
     return [
         types.Tool(
-            name=TOOL_NAME,
-            description=f"{description}\n\nOutput schema: {json.dumps(DATA_ANALYST_OUTPUT_SCHEMA)}",
+            name=DATA_ANALYST_TOOL_NAME,
+            description=f"{data_analyst_description}\n\nOutput schema: {json.dumps(DATA_ANALYST_OUTPUT_SCHEMA)}",
             inputSchema=DATA_ANALYST_INPUT_SCHEMA,
-        )
+        ),
+        types.Tool(
+            name=ORCHESTRATOR_TOOL_NAME,
+            description=f"{orchestrator_description}\n\nOutput schema: {json.dumps(ORCHESTRATOR_OUTPUT_SCHEMA)}",
+            inputSchema=ORCHESTRATOR_INPUT_SCHEMA,
+        ),
     ]
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-    if name != TOOL_NAME:
-        raise ValueError(f"Tool necunoscut: {name}. Tool disponibil: {TOOL_NAME}")
-
-    payload = run_data_analyst_tool(arguments)
+    if name == DATA_ANALYST_TOOL_NAME:
+        payload = run_data_analyst_tool(arguments)
+    elif name == ORCHESTRATOR_TOOL_NAME:
+        payload = run_orchestrator_tool(arguments)
+    else:
+        available = [DATA_ANALYST_TOOL_NAME, ORCHESTRATOR_TOOL_NAME]
+        raise ValueError(f"Tool necunoscut: {name}. Tools disponibile: {available}")
 
     return [
         types.TextContent(

@@ -259,11 +259,14 @@ tools_catalog = ToolWrapper.to_prompt_string()
 cd src && python main.py
 ```
 
-## MCP: Data Analyst Agent ca tool
+## MCP: Agentii L6 ca tools
 
-Serverul MCP este in `src/analyst_mcp_server.py` si expune tool-ul `data_analyst`.
+Serverul MCP este in `src/analyst_mcp_server.py` si expune doua tool-uri:
 
-Input schema:
+- `data_analyst` - Analyst + NL2SQL pentru tabelele `achizitii_directe` si `anunturi_initiere`
+- `orchestrator_rag` - Orchestrator Supervisor + RAG pentru intrebari peste documente
+
+Input `data_analyst`:
 ```json
 {
   "question": "string, required",
@@ -273,7 +276,15 @@ Input schema:
 }
 ```
 
-Output-ul este returnat ca `TextContent` JSON:
+Input `orchestrator_rag`:
+```json
+{
+  "query": "string, required",
+  "include_rag_context": "boolean, default true"
+}
+```
+
+Output-ul fiecarui tool este returnat ca `TextContent` JSON. Pentru `data_analyst`:
 ```json
 {
   "status": "success | failed | no_plan",
@@ -290,17 +301,43 @@ Output-ul este returnat ca `TextContent` JSON:
 }
 ```
 
-Rulare prin stdio:
-```bash
-python src/analyst_mcp_server.py
+Pentru `orchestrator_rag`:
+```json
+{
+  "status": "success | partial | failed",
+  "answer": "raspunsul sintetizat",
+  "iteration": 1,
+  "feedback": {},
+  "rag_context": {
+    "query_used": "query-ul folosit de RAG",
+    "result_count": 0,
+    "max_score": 0.0,
+    "avg_score": 0.0,
+    "sources": []
+  }
+}
 ```
 
-Exemplu config MCP local:
+Rulare prin stdio:
+```bash
+python3.11 src/analyst_mcp_server.py
+```
+
+Test client MCP:
+```bash
+# handshake + tools/list, fara LLM/DB
+python3.11 src/test_mcp_client.py
+
+# tools/list + tools/call pentru ambele tool-uri; necesita .env, DB si date
+python3.11 src/test_mcp_client.py --call
+```
+
+Exemplu config MCP local pentru Claude Code:
 ```json
 {
   "mcpServers": {
-    "data-analyst-agent": {
-      "command": "python",
+    "l6-agents": {
+      "command": "python3.11",
       "args": ["/path/to/project/src/analyst_mcp_server.py"]
     }
   }
